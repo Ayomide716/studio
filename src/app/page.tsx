@@ -16,29 +16,40 @@ import { addHabit as addHabitAction, getHabits, toggleHabitCompletion } from './
 
 export default function Home() {
   const [habits, setHabits] = useState<Habit[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const { toast } = useToast();
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
+    // Redirect to login if auth is done and there's no user.
+    if (!authLoading && !user) {
       router.push('/login');
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router]);
 
   useEffect(() => {
     const fetchHabits = async () => {
-      if (user) {
-        setIsLoaded(false);
-        const userHabits = await getHabits(user.uid);
-        setHabits(userHabits);
-        setIsLoaded(true);
+      // Only fetch habits if we have a user and haven't loaded data yet.
+      if (user && !isDataLoaded) {
+        try {
+          const userHabits = await getHabits(user.uid);
+          setHabits(userHabits);
+        } catch (error) {
+            console.error("Failed to fetch habits:", error);
+            toast({
+                title: "Error",
+                description: "Could not load your quests. Please try again later.",
+                variant: "destructive"
+            });
+        } finally {
+          setIsDataLoaded(true);
+        }
       }
     };
     fetchHabits();
-  }, [user]);
+  }, [user, isDataLoaded, toast]);
 
   const addHabit = async (newHabit: Omit<Habit, 'id' | 'streak' | 'longestStreak' | 'completionDates'>) => {
     if (!user) return;
@@ -100,7 +111,7 @@ export default function Home() {
     }
   };
   
-  if (loading || !isLoaded || !user) {
+  if (authLoading || !user || !isDataLoaded) {
     return (
         <div className="flex items-center justify-center min-h-screen">
             <div>Loading your quests...</div>
