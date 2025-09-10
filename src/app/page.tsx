@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Habit } from '@/lib/types';
 import Header from '@/components/header';
 import AiHabitSuggester from '@/components/ai-habit-suggester';
@@ -12,9 +12,35 @@ import { initialHabits } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
-  const [habits, setHabits] = useState<Habit[]>(initialHabits);
+  const [habits, setHabits] = useState<Habit[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    try {
+      const storedHabits = localStorage.getItem('habits');
+      if (storedHabits) {
+        setHabits(JSON.parse(storedHabits));
+      } else {
+        setHabits(initialHabits);
+      }
+    } catch (error) {
+      console.error("Failed to load habits from local storage", error);
+      setHabits(initialHabits);
+    }
+    setIsLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded) {
+      try {
+        localStorage.setItem('habits', JSON.stringify(habits));
+      } catch (error) {
+        console.error("Failed to save habits to local storage", error);
+      }
+    }
+  }, [habits, isLoaded]);
 
   const addHabit = (newHabit: Omit<Habit, 'id' | 'streak' | 'longestStreak' | 'completionDates'>) => {
     const habitToAdd: Habit = {
@@ -37,7 +63,7 @@ export default function Home() {
     const today = getTodayDateString();
     
     setHabits(prevHabits => {
-      return prevHabits.map(habit => {
+      const updatedHabits = prevHabits.map(habit => {
         if (habit.id !== habitId) return habit;
 
         const newCompletionDates = { ...habit.completionDates };
@@ -73,6 +99,7 @@ export default function Home() {
           longestStreak,
         };
       });
+      return updatedHabits;
     });
   };
   
