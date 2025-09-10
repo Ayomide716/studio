@@ -10,7 +10,7 @@ import AddHabitDialog from '@/components/add-habit-dialog';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/hooks/use-auth.tsx';
 import { useRouter } from 'next/navigation';
 import { addHabit as addHabitAction, getHabits, toggleHabitCompletion } from './actions';
 
@@ -32,7 +32,7 @@ export default function Home() {
     const fetchHabits = async () => {
       if (user) {
         setIsLoaded(false);
-        const userHabits = await getHabits();
+        const userHabits = await getHabits(user.uid);
         setHabits(userHabits);
         setIsLoaded(true);
       }
@@ -43,7 +43,7 @@ export default function Home() {
   const addHabit = async (newHabit: Omit<Habit, 'id' | 'streak' | 'longestStreak' | 'completionDates'>) => {
     if (!user) return;
     try {
-      const addedHabit = await addHabitAction(newHabit);
+      const addedHabit = await addHabitAction(user.uid, newHabit);
       setHabits(prev => [addedHabit, ...prev]);
       toast({
         title: "New Quest Added! ✨",
@@ -59,6 +59,7 @@ export default function Home() {
   };
 
   const handleToggleHabit = async (habitId: string) => {
+    if (!user) return;
     const originalHabits = [...habits];
     
     // Optimistically update UI
@@ -76,7 +77,7 @@ export default function Home() {
     setHabits(updatedHabits);
 
     try {
-      const resultHabit = await toggleHabitCompletion(habitId);
+      const resultHabit = await toggleHabitCompletion(user.uid, habitId);
       // Update with server state
       setHabits(prev => prev.map(h => h.id === habitId ? resultHabit : h));
 

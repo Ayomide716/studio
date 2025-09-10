@@ -5,7 +5,6 @@ import { suggestHabits as suggestHabitsFlow } from '@/ai/flows/ai-powered-habit-
 import type { HabitSuggestionInput } from '@/ai/flows/ai-powered-habit-suggestions';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, doc, updateDoc, getDoc, query, where, orderBy } from 'firebase/firestore';
-import { auth } from '@/lib/firebase';
 import type { Habit } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 
@@ -26,20 +25,20 @@ export async function getAIHabitSuggestions(input: HabitSuggestionInput) {
 }
 
 // Firestore Habit Actions
-const getHabitsCollection = () => {
-  if (!auth.currentUser) throw new Error("User not authenticated");
-  return collection(db, 'users', auth.currentUser.uid, 'habits');
+const getHabitsCollection = (userId: string) => {
+  if (!userId) throw new Error("User not authenticated");
+  return collection(db, 'users', userId, 'habits');
 };
 
-export async function getHabits(): Promise<Habit[]> {
-  const habitsCollection = getHabitsCollection();
+export async function getHabits(userId: string): Promise<Habit[]> {
+  const habitsCollection = getHabitsCollection(userId);
   const q = query(habitsCollection, orderBy('createdAt', 'desc'));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Habit));
 }
 
-export async function addHabit(habitData: Omit<Habit, 'id' | 'streak' | 'longestStreak' | 'completionDates'>): Promise<Habit> {
-  const habitsCollection = getHabitsCollection();
+export async function addHabit(userId: string, habitData: Omit<Habit, 'id' | 'streak' | 'longestStreak' | 'completionDates'>): Promise<Habit> {
+  const habitsCollection = getHabitsCollection(userId);
   const newHabit: Omit<Habit, 'id'> = {
     ...habitData,
     streak: 0,
@@ -52,9 +51,9 @@ export async function addHabit(habitData: Omit<Habit, 'id' | 'streak' | 'longest
   return { id: docRef.id, ...newHabit };
 }
 
-export async function toggleHabitCompletion(habitId: string): Promise<Habit> {
-    if (!auth.currentUser) throw new Error("User not authenticated");
-    const habitRef = doc(db, 'users', auth.currentUser.uid, 'habits', habitId);
+export async function toggleHabitCompletion(userId: string, habitId: string): Promise<Habit> {
+    if (!userId) throw new Error("User not authenticated");
+    const habitRef = doc(db, 'users', userId, 'habits', habitId);
     const habitSnap = await getDoc(habitRef);
   
     if (!habitSnap.exists()) {
