@@ -3,14 +3,14 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration - REPLACE WITH YOUR CONFIG
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDWVrgv7maLXPrkrGg_wVFG7PtiEpUREFo",
-  authDomain: "dev-habit-quest.firebaseapp.com",
-  projectId: "habit-quest-148",
-  storageBucket: "dev-habit-quest.appspot.com",
-  messagingSenderId: "105559642375",
-  appId: "1:105559642375:web:8e3d3e6d8c634e72355e2e"
+  apiKey: "AIzaSyDY9QLvB-9fg3Bi1LK3cj-8oEkiXo3WdkI",
+  authDomain: "sample-firebase-ai-34d85.firebaseapp.com",
+  projectId: "sample-firebase-ai-34d85",
+  storageBucket: "sample-firebase-ai-34d85.appspot.com",
+  messagingSenderId: "538382735670",
+  appId: "1:538382735670:web:7a278d2a6149d03f01bb97"
 };
 
 
