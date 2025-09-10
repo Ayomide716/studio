@@ -44,16 +44,11 @@ export async function suggestHabits(input: HabitSuggestionInput): Promise<HabitS
 const habitSuggestionPrompt = ai.definePrompt({
   name: 'habitSuggestionPrompt',
   input: {schema: HabitSuggestionInputSchema},
+  output: {schema: HabitSuggestionOutputSchema},
   prompt: `Based on the user's interests and goals, generate a list of exactly 3 concise, actionable habit suggestions.
-  Provide the output as a simple list of strings. Do not add any introductory text or extra formatting.
 
   Interests: {{{interests}}}
   Goals: {{{goals}}}
-  
-  Example Output:
-  1. Go for a 20-minute walk every morning.
-  2. Read 10 pages of a book before bed.
-  3. Drink a glass of water after waking up.
   `,
 });
 
@@ -69,11 +64,11 @@ const suggestHabitsFlow = ai.defineFlow(
       prompt: habitSuggestionPrompt.prompt,
       input,
       model: 'googleai/gemini-2.5-flash',
+      output: {
+        schema: HabitSuggestionOutputSchema,
+      },
     });
 
-    const suggestionsText = llmResponse.text;
-    const suggestions = suggestionsText.split('\n').filter(s => s.trim() !== '').map(s => s.replace(/^\d+\.\s*/, '').trim());
-
-    return { suggestions };
+    return llmResponse.output() || { suggestions: [] };
   }
 );
