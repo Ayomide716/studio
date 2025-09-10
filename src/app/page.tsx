@@ -20,9 +20,10 @@ export default function Home() {
   useEffect(() => {
     try {
       const storedHabits = localStorage.getItem('habits');
+      // Only set initial habits if nothing is in storage
       if (storedHabits) {
         setHabits(JSON.parse(storedHabits));
-      } else {
+      } else if (JSON.parse(storedHabits || '[]').length === 0) {
         setHabits(initialHabits);
       }
     } catch (error) {
@@ -33,6 +34,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    // Only save to localStorage after the initial load is complete
     if (isLoaded) {
       try {
         localStorage.setItem('habits', JSON.stringify(habits));
@@ -67,7 +69,9 @@ export default function Home() {
         if (habit.id !== habitId) return habit;
 
         const newCompletionDates = { ...habit.completionDates };
-        if (newCompletionDates[today]) {
+        const wasCompletedToday = !!newCompletionDates[today];
+        
+        if (wasCompletedToday) {
           delete newCompletionDates[today];
         } else {
           newCompletionDates[today] = true;
@@ -77,6 +81,7 @@ export default function Home() {
         let currentStreak = 0;
         let tempDate = new Date();
         
+        // Start checking from today
         while (newCompletionDates[tempDate.toISOString().split('T')[0]]) {
             currentStreak++;
             tempDate.setDate(tempDate.getDate() - 1);
@@ -103,6 +108,14 @@ export default function Home() {
     });
   };
   
+  if (!isLoaded) {
+    return (
+        <div className="flex items-center justify-center min-h-screen">
+            <div>Loading your quests...</div>
+        </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Header />
