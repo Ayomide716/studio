@@ -6,12 +6,12 @@ import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDWVrgv7maLXPrkrGg_wVFG7PtiEpUREFo",
-  authDomain: "habit-quest-studio.firebaseapp.com",
-  projectId: "habit-quest-studio",
-  storageBucket: "habit-quest-studio.appspot.com",
-  messagingSenderId: "1052828751413",
-  appId: "1:1052828751413:web:e7c108429fa11543f49c25"
+  apiKey: "API_KEY",
+  authDomain: "PROJECT_ID.firebaseapp.com",
+  projectId: "PROJECT_ID",
+  storageBucket: "PROJECT_ID.appspot.com",
+  messagingSenderId: "SENDER_ID",
+  appId: "APP_ID"
 };
 
 // Initialize Firebase
