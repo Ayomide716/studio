@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ const colors = ['#FFA500', '#008080', '#8A2BE2', '#32CD32', '#A0522D', '#4682B4'
 export default function AddHabitDialog({ isOpen, setIsOpen, onAddHabit }: AddHabitDialogProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [duration, setDuration] = useState(30);
   const [selectedIcon, setSelectedIcon] = useState(icons[0]);
   const [selectedColor, setSelectedColor] = useState(colors[0]);
   
@@ -30,10 +32,11 @@ export default function AddHabitDialog({ isOpen, setIsOpen, onAddHabit }: AddHab
     e.preventDefault();
     if (!name.trim()) return;
 
-    onAddHabit({ name, description, icon: selectedIcon, color: selectedColor });
+    onAddHabit({ name, description, icon: selectedIcon, color: selectedColor, duration });
     
     setName('');
     setDescription('');
+    setDuration(30);
     setSelectedIcon(icons[0]);
     setSelectedColor(colors[0]);
     setIsOpen(false);
@@ -62,6 +65,17 @@ export default function AddHabitDialog({ isOpen, setIsOpen, onAddHabit }: AddHab
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A brief description of your quest" />
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="duration">Quest Duration (days)</Label>
+                <Input
+                    id="duration"
+                    type="number"
+                    value={duration}
+                    onChange={(e) => setDuration(parseInt(e.target.value) || 1)}
+                    min="1"
+                    required
+                />
             </div>
             <div className="space-y-2">
               <Label>Icon</Label>

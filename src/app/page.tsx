@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth.tsx';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, getDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, getDoc, query, orderBy, deleteDoc } from 'firebase/firestore';
 
 export default function Home() {
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -83,6 +83,27 @@ export default function Home() {
       toast({
         title: "Error",
         description: "Failed to add quest. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteHabit = async (habitId: string) => {
+    if (!user) return;
+    try {
+      const habitRef = doc(db, 'users', user.uid, 'habits', habitId);
+      await deleteDoc(habitRef);
+
+      setHabits(prev => prev.filter(h => h.id !== habitId));
+      toast({
+        title: "Quest Abandoned",
+        description: "The quest has been removed from your log."
+      });
+    } catch (error) {
+      console.error("Failed to delete habit:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete quest. Please try again.",
         variant: "destructive"
       });
     }
@@ -188,7 +209,7 @@ export default function Home() {
                 New Quest
               </Button>
             </div>
-            <HabitList habits={habits} onToggleHabit={handleToggleHabit} />
+            <HabitList habits={habits} onToggleHabit={handleToggleHabit} onDeleteHabit={deleteHabit} />
         </div>
 
         <AddHabitDialog

@@ -1,6 +1,7 @@
+
 "use client";
 
-import { Flame, Star, Copy, Check } from 'lucide-react';
+import { Flame, Star, Copy, Check, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -8,11 +9,24 @@ import type { Habit } from '@/lib/types';
 import * as LucideIcons from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
 
 interface HabitItemProps {
   habit: Habit;
   isCompletedToday: boolean;
   onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
 const DynamicIcon = ({ name, ...props }: { name: string } & LucideIcons.LucideProps) => {
@@ -23,13 +37,12 @@ const DynamicIcon = ({ name, ...props }: { name: string } & LucideIcons.LucidePr
   return <IconComponent {...props} />;
 };
 
-export default function HabitItem({ habit, isCompletedToday, onToggle }: HabitItemProps) {
+export default function HabitItem({ habit, isCompletedToday, onToggle, onDelete }: HabitItemProps) {
   const { toast } = useToast();
   const [isCopied, setIsCopied] = useState(false);
 
   const totalCompletions = Object.keys(habit.completionDates).length;
-  // Let's set an arbitrary goal for the progress bar
-  const goal = 30;
+  const goal = habit.duration || 30;
   const progressPercentage = (totalCompletions / goal) * 100;
 
   const handleShare = () => {
@@ -80,10 +93,33 @@ export default function HabitItem({ habit, isCompletedToday, onToggle }: HabitIt
             <span>{habit.longestStreak}</span>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={handleShare}>
-          {isCopied ? <Check className="w-4 h-4 mr-2 text-green-500" /> : <Copy className="w-4 h-4 mr-2" />}
-          Share
-        </Button>
+        <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={handleShare}>
+              {isCopied ? <Check className="w-4 h-4 mr-2 text-green-500" /> : <Copy className="w-4 h-4 mr-2" />}
+              Share
+            </Button>
+             <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-destructive/80 hover:text-destructive hover:bg-destructive/10 w-8 h-8">
+                        <Trash2 className="w-4 h-4" />
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure you want to abandon this quest?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. All progress for "{habit.name}" will be permanently lost.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => onDelete(habit.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Delete
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div>
       </CardFooter>
     </Card>
   );

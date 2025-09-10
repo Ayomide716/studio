@@ -9,5 +9,6 @@ export interface Habit {
   completionDates: Record<string, boolean>; 
   icon: string;
   color: string;
+  duration: number; // Duration of the habit in days
   createdAt?: string; // Optional: for sorting
 }

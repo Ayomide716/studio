@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Habit } from '@/lib/types';
@@ -6,11 +7,12 @@ import HabitItem from './habit-item';
 interface HabitListProps {
   habits: Habit[];
   onToggleHabit: (habitId: string) => void;
+  onDeleteHabit: (habitId: string) => void;
 }
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
-export default function HabitList({ habits, onToggleHabit }: HabitListProps) {
+export default function HabitList({ habits, onToggleHabit, onDeleteHabit }: HabitListProps) {
   if (habits.length === 0) {
     return (
       <div className="text-center py-12 px-6 rounded-lg bg-card border-2 border-dashed">
@@ -29,6 +31,7 @@ export default function HabitList({ habits, onToggleHabit }: HabitListProps) {
           key={habit.id}
           habit={habit}
           onToggle={onToggleHabit}
+          onDelete={onDeleteHabit}
           isCompletedToday={!!habit.completionDates[getTodayDateString()]}
         />
       ))}
