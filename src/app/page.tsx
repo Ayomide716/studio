@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Habit } from '@/lib/types';
 import Header from '@/components/header';
 import AiHabitSuggester from '@/components/ai-habit-suggester';
@@ -12,7 +12,8 @@ import { PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth.tsx';
 import { useRouter } from 'next/navigation';
-import { addHabit as addHabitAction, getHabits, toggleHabitCompletion } from './actions';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, addDoc, doc, updateDoc, getDoc, query, orderBy } from 'firebase/firestore';
 
 export default function Home() {
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -22,16 +23,20 @@ export default function Home() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    // Redirect to login if auth is done and there's no user.
-    if (!authLoading && !user) {
-      router.push('/login');
-    }
-  }, [user, authLoading, router]);
+  const getHabits = useCallback(async (userId: string): Promise<Habit[]> => {
+    const habitsCollection = collection(db, 'users', userId, 'habits');
+    const q = query(habitsCollection, orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Habit));
+  }, []);
 
   useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+      return;
+    }
+
     const fetchHabits = async () => {
-      // Only fetch habits if we have a user and haven't loaded data yet.
       if (user && !isDataLoaded) {
         try {
           const userHabits = await getHabits(user.uid);
@@ -48,19 +53,33 @@ export default function Home() {
         }
       }
     };
-    fetchHabits();
-  }, [user, isDataLoaded, toast]);
 
-  const addHabit = async (newHabit: Omit<Habit, 'id' | 'streak' | 'longestStreak' | 'completionDates'>) => {
+    if (!authLoading && user) {
+        fetchHabits();
+    }
+  }, [user, authLoading, router, isDataLoaded, toast, getHabits]);
+
+  const addHabit = async (habitData: Omit<Habit, 'id' | 'streak' | 'longestStreak' | 'completionDates'>) => {
     if (!user) return;
     try {
-      const addedHabit = await addHabitAction(user.uid, newHabit);
+      const habitsCollection = collection(db, 'users', user.uid, 'habits');
+      const newHabit: Omit<Habit, 'id'> = {
+        ...habitData,
+        streak: 0,
+        longestStreak: 0,
+        completionDates: {},
+        createdAt: new Date().toISOString(),
+      };
+      const docRef = await addDoc(habitsCollection, newHabit);
+      const addedHabit = { id: docRef.id, ...newHabit };
+
       setHabits(prev => [addedHabit, ...prev]);
       toast({
         title: "New Quest Added! ✨",
-        description: `Your new quest "${newHabit.name}" has begun.`
+        description: `Your new quest "${habitData.name}" has begun.`
       });
     } catch (error) {
+      console.error("Failed to add habit:", error);
       toast({
         title: "Error",
         description: "Failed to add quest. Please try again.",
@@ -88,9 +107,44 @@ export default function Home() {
     setHabits(updatedHabits);
 
     try {
-      const resultHabit = await toggleHabitCompletion(user.uid, habitId);
-      // Update with server state
-      setHabits(prev => prev.map(h => h.id === habitId ? resultHabit : h));
+        const habitRef = doc(db, 'users', user.uid, 'habits', habitId);
+        const habitSnap = await getDoc(habitRef);
+      
+        if (!habitSnap.exists()) {
+          throw new Error("Habit not found");
+        }
+      
+        const habit = { id: habitSnap.id, ...habitSnap.data() } as Habit;
+      
+        const newCompletionDates = { ...habit.completionDates };
+        if (newCompletionDates[today]) {
+          delete newCompletionDates[today];
+        } else {
+          newCompletionDates[today] = true;
+        }
+      
+        // Recalculate streak
+        let currentStreak = 0;
+        let tempDate = new Date();
+        while (newCompletionDates[tempDate.toISOString().split('T')[0]]) {
+          currentStreak++;
+          tempDate.setDate(tempDate.getDate() - 1);
+        }
+      
+        const longestStreak = Math.max(habit.longestStreak, currentStreak);
+      
+        const updatedHabitData = {
+          completionDates: newCompletionDates,
+          streak: currentStreak,
+          longestStreak,
+        };
+      
+        await updateDoc(habitRef, updatedHabitData);
+        
+        const resultHabit = { ...habit, ...updatedHabitData };
+        
+        // Update with server state
+        setHabits(prev => prev.map(h => h.id === habitId ? resultHabit : h));
 
        // Milestone achievements
        if (resultHabit.streak > habitToUpdate.streak && [3, 7, 14, 30, 50, 100].includes(resultHabit.streak)) {
@@ -98,9 +152,10 @@ export default function Home() {
          title: "Milestone Reached! 🏆",
          description: `You've completed "${resultHabit.name}" for ${resultHabit.streak} days in a row!`,
         });
-     }
+       }
 
     } catch (error) {
+      console.error("Failed to toggle habit:", error);
       // Revert on error
       setHabits(originalHabits);
       toast({
