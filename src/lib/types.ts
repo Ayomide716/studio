@@ -1,3 +1,4 @@
+
 export interface Habit {
   id: string;
   name: string;
@@ -8,4 +9,5 @@ export interface Habit {
   completionDates: Record<string, boolean>; 
   icon: string;
   color: string;
+  createdAt?: string; // Optional: for sorting
 }

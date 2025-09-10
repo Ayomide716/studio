@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -30,7 +31,7 @@ export type HabitSuggestionInput = z.infer<typeof HabitSuggestionInputSchema>;
 const HabitSuggestionOutputSchema = z.object({
   suggestions: z
     .array(z.string())
-    .describe('A list of personalized habit suggestions.'),
+    .describe('A list of 3 concise, actionable habit suggestions as strings.'),
 });
 export type HabitSuggestionOutput = z.infer<typeof HabitSuggestionOutputSchema>;
 
@@ -43,13 +44,17 @@ export async function suggestHabits(input: HabitSuggestionInput): Promise<HabitS
 const habitSuggestionPrompt = ai.definePrompt({
   name: 'habitSuggestionPrompt',
   input: {schema: HabitSuggestionInputSchema},
-  output: {schema: HabitSuggestionOutputSchema},
-  prompt: `You are an AI habit suggestion assistant. Given a user's interests and goals, you will suggest a list of habits that will improve their life.
+  prompt: `Based on the user's interests and goals, generate a list of exactly 3 concise, actionable habit suggestions.
+  Provide the output as a simple list of strings. Do not add any introductory text or extra formatting.
 
   Interests: {{{interests}}}
   Goals: {{{goals}}}
-
-  Suggest 3 habits that can help the user.`,
+  
+  Example Output:
+  1. Go for a 20-minute walk every morning.
+  2. Read 10 pages of a book before bed.
+  3. Drink a glass of water after waking up.
+  `,
 });
 
 // Define the Genkit flow for habit suggestion
@@ -60,7 +65,15 @@ const suggestHabitsFlow = ai.defineFlow(
     outputSchema: HabitSuggestionOutputSchema,
   },
   async input => {
-    const {output} = await habitSuggestionPrompt(input);
-    return output!;
+    const llmResponse = await ai.generate({
+      prompt: habitSuggestionPrompt.prompt,
+      input,
+      model: 'googleai/gemini-2.5-flash',
+    });
+
+    const suggestionsText = llmResponse.text;
+    const suggestions = suggestionsText.split('\n').filter(s => s.trim() !== '').map(s => s.replace(/^\d+\.\s*/, '').trim());
+
+    return { suggestions };
   }
 );

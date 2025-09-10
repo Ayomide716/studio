@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -8,107 +9,97 @@ import HabitList from '@/components/habit-list';
 import AddHabitDialog from '@/components/add-habit-dialog';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
-import { initialHabits } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import { useRouter } from 'next/navigation';
+import { addHabit as addHabitAction, getHabits, toggleHabitCompletion } from './actions';
 
 export default function Home() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const { toast } = useToast();
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    try {
-      const storedHabits = localStorage.getItem('habits');
-      // Only set initial habits if nothing is in storage
-      if (storedHabits) {
-        setHabits(JSON.parse(storedHabits));
-      } else if (JSON.parse(storedHabits || '[]').length === 0) {
-        setHabits(initialHabits);
-      }
-    } catch (error) {
-      console.error("Failed to load habits from local storage", error);
-      setHabits(initialHabits);
+    if (!loading && !user) {
+      router.push('/login');
     }
-    setIsLoaded(true);
-  }, []);
+  }, [user, loading, router]);
 
   useEffect(() => {
-    // Only save to localStorage after the initial load is complete
-    if (isLoaded) {
-      try {
-        localStorage.setItem('habits', JSON.stringify(habits));
-      } catch (error) {
-        console.error("Failed to save habits to local storage", error);
+    const fetchHabits = async () => {
+      if (user) {
+        setIsLoaded(false);
+        const userHabits = await getHabits();
+        setHabits(userHabits);
+        setIsLoaded(true);
       }
-    }
-  }, [habits, isLoaded]);
-
-  const addHabit = (newHabit: Omit<Habit, 'id' | 'streak' | 'longestStreak' | 'completionDates'>) => {
-    const habitToAdd: Habit = {
-      ...newHabit,
-      id: crypto.randomUUID(),
-      streak: 0,
-      longestStreak: 0,
-      completionDates: {},
     };
-    setHabits(prev => [habitToAdd, ...prev]);
-    toast({
-      title: "New Quest Added! ✨",
-      description: `Your new quest "${newHabit.name}" has begun.`
-    })
-  };
-  
-  const getTodayDateString = () => new Date().toISOString().split('T')[0];
+    fetchHabits();
+  }, [user]);
 
-  const handleToggleHabit = (habitId: string) => {
-    const today = getTodayDateString();
-    
-    setHabits(prevHabits => {
-      const updatedHabits = prevHabits.map(habit => {
-        if (habit.id !== habitId) return habit;
-
-        const newCompletionDates = { ...habit.completionDates };
-        const wasCompletedToday = !!newCompletionDates[today];
-        
-        if (wasCompletedToday) {
-          delete newCompletionDates[today];
-        } else {
-          newCompletionDates[today] = true;
-        }
-        
-        // Recalculate streak
-        let currentStreak = 0;
-        let tempDate = new Date();
-        
-        // Start checking from today
-        while (newCompletionDates[tempDate.toISOString().split('T')[0]]) {
-            currentStreak++;
-            tempDate.setDate(tempDate.getDate() - 1);
-        }
-        
-        const longestStreak = Math.max(habit.longestStreak, currentStreak);
-
-        // Milestone achievements
-        if (currentStreak > habit.streak && [3, 7, 14, 30, 50, 100].includes(currentStreak)) {
-           toast({
-            title: "Milestone Reached! 🏆",
-            description: `You've completed "${habit.name}" for ${currentStreak} days in a row!`,
-           });
-        }
-        
-        return {
-          ...habit,
-          completionDates: newCompletionDates,
-          streak: currentStreak,
-          longestStreak,
-        };
+  const addHabit = async (newHabit: Omit<Habit, 'id' | 'streak' | 'longestStreak' | 'completionDates'>) => {
+    if (!user) return;
+    try {
+      const addedHabit = await addHabitAction(newHabit);
+      setHabits(prev => [addedHabit, ...prev]);
+      toast({
+        title: "New Quest Added! ✨",
+        description: `Your new quest "${newHabit.name}" has begun.`
       });
-      return updatedHabits;
-    });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add quest. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleToggleHabit = async (habitId: string) => {
+    const originalHabits = [...habits];
+    
+    // Optimistically update UI
+    const today = new Date().toISOString().split('T')[0];
+    const habitToUpdate = habits.find(h => h.id === habitId);
+    if (!habitToUpdate) return;
+    
+    const wasCompletedToday = !!habitToUpdate.completionDates[today];
+    
+    const updatedHabits = habits.map(h => 
+      h.id === habitId 
+        ? { ...h, completionDates: { ...h.completionDates, [today]: !wasCompletedToday } }
+        : h
+    );
+    setHabits(updatedHabits);
+
+    try {
+      const resultHabit = await toggleHabitCompletion(habitId);
+      // Update with server state
+      setHabits(prev => prev.map(h => h.id === habitId ? resultHabit : h));
+
+       // Milestone achievements
+       if (resultHabit.streak > habitToUpdate.streak && [3, 7, 14, 30, 50, 100].includes(resultHabit.streak)) {
+        toast({
+         title: "Milestone Reached! 🏆",
+         description: `You've completed "${resultHabit.name}" for ${resultHabit.streak} days in a row!`,
+        });
+     }
+
+    } catch (error) {
+      // Revert on error
+      setHabits(originalHabits);
+      toast({
+        title: "Error",
+        description: "Failed to update quest. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
   
-  if (!isLoaded) {
+  if (loading || !isLoaded || !user) {
     return (
         <div className="flex items-center justify-center min-h-screen">
             <div>Loading your quests...</div>
